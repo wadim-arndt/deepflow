@@ -8,24 +8,24 @@ let cosmicObjects = [];
 // --- Configuration ---
 const MAX_DEPTH = 1000;
 const BASE_SPEED = 2.5;
-const WARP_SPEED_THRESHOLD = 35; // Speed required to build portal progress
+const WARP_SPEED_THRESHOLD = 30; // Threshold for portal activation
 
-// Phase Definitions
+// Phase Definitions with increased star counts
 const PHASES = [
-  { id: 0, name: "Calm Space", count: 800, hueRange: 200, trail: 0.15, shake: 0 },
-  { id: 1, name: "Ion Cloud", count: 1200, hueRange: 160, trail: 0.25, shake: 0.5 },
-  { id: 2, name: "Energy Vortex", count: 1500, hueRange: 300, trail: 0.35, shake: 2 },
-  { id: 3, name: "Hyperspace Void", count: 2000, hueRange: 220, trail: 0.5, shake: 5 }
+  { id: 0, name: "Calm Space", count: 1200, hueRange: 200, trail: 0.15, shake: 0 },
+  { id: 1, name: "Ion Cloud", count: 1800, hueRange: 160, trail: 0.25, shake: 0.5 },
+  { id: 2, name: "Energy Vortex", count: 2200, hueRange: 300, trail: 0.35, shake: 2 },
+  { id: 3, name: "Hyperspace Void", count: 2800, hueRange: 220, trail: 0.5, shake: 5 }
 ];
 
 let phaseIdx = 0;
-let portalProgress = 0;
-let isPhasing = false;
+let portalProgress = 0; // 0 to 1 scaling for expansion effect
+let isPhasing = false; // Is currently in the breakthrough event
 let phaseFlash = 0; // Screen flash alpha
+let portalBuildupValue = 0; // Internal timer for manual trigger delay
 
 let currentSpeed = BASE_SPEED;
 let targetSpeed = BASE_SPEED;
-let flightDirection = 1;
 let tunnelCurveX = 0, tunnelCurveY = 0;
 let huePivot = 220;
 
@@ -48,25 +48,31 @@ class Particle {
 
   init(isInitial = false) {
     const distFactor = Math.sqrt(Math.random());
-    this.r = (distFactor * 500) + 10;
+    this.r = (distFactor * 600) + 10; // Wider distribution
     this.phi = Math.random() * Math.PI * 2;
-    this.z = isInitial ? Math.random() * MAX_DEPTH : (flightDirection > 0 ? MAX_DEPTH : 10);
+    this.z = isInitial ? Math.random() * MAX_DEPTH : MAX_DEPTH;
     this.prevZ = this.z;
-    this.spin = (Math.random() - 0.5) * 0.01;
+    this.spin = (Math.random() - 0.5) * 0.008;
     this.size = Math.random() * 1.5 + 0.5;
-    this.type = Math.random() > 0.8 ? 'streak' : 'dust';
+    this.type = Math.random() > 0.85 ? 'streak' : 'dust';
   }
 
   update(speed) {
     this.prevZ = this.z;
-    this.z -= (speed * flightDirection);
+    this.z -= speed;
+
+    // CENTER BIAS: Subtle radial pull to enhance tunnel depth
+    if (this.z < 800) {
+      this.r *= 0.998;
+    }
+
     this.phi += this.spin;
-    if (flightDirection > 0 ? this.z <= 1 : this.z >= MAX_DEPTH) this.init(false);
+    if (this.z <= 1) this.init(false);
   }
 
   draw() {
     if (this.z <= 5 || this.z >= MAX_DEPTH) return;
-    const factor = (500 + currentSpeed * 10) / this.z; // FOV shift with speed
+    const factor = (500 + currentSpeed * 10) / this.z; 
     const curve = (MAX_DEPTH - this.z) * 0.15;
     const px = Math.cos(this.phi) * this.r * factor + centerX + (tunnelCurveX * curve);
     const py = Math.sin(this.phi) * this.r * factor + centerY + (tunnelCurveY * curve);
@@ -107,7 +113,7 @@ class CosmicObject {
   }
 
   update(speed) {
-    this.z -= speed * 0.5 * flightDirection; // Slower parallax
+    this.z -= speed * 0.5;
     if (this.z < 20) this.init();
   }
 
@@ -133,25 +139,33 @@ class CosmicObject {
 
 // Initialization
 for (let i = 0; i < PHASES[0].count; i++) particles.push(new Particle(true));
-for (let i = 0; i < 3; i++) cosmicObjects.push(new CosmicObject());
+for (let i = 0; i < 4; i++) cosmicObjects.push(new CosmicObject());
 
-function triggerNextPhase() {
+function triggerPortalEvent() {
+  if (isPhasing) return;
   isPhasing = true;
-  phaseFlash = 1.0;
-  setTimeout(() => {
-    phaseIdx = (phaseIdx + 1) % PHASES.length;
-    portalProgress = 0;
-    isPhasing = false;
-    // Adjust particle count
-    const targetCount = PHASES[phaseIdx].count;
-    while (particles.length < targetCount) particles.push(new Particle());
-    if (particles.length > targetCount) particles.splice(0, particles.length - targetCount);
-    console.log(`Entering phase: ${PHASES[phaseIdx].name}`);
-  }, 200);
+  portalProgress = 0.1;
+
+  // Expansion + Flash animation
+  const transition = setInterval(() => {
+    portalProgress += 0.05;
+    if (portalProgress >= 1.0) {
+      clearInterval(transition);
+      phaseFlash = 1.0;
+      phaseIdx = (phaseIdx + 1) % PHASES.length;
+      portalProgress = 0;
+      isPhasing = false;
+      portalBuildupValue = 0;
+      
+      const targetCount = PHASES[phaseIdx].count;
+      while (particles.length < targetCount) particles.push(new Particle());
+      if (particles.length > targetCount) particles.splice(0, particles.length - targetCount);
+    }
+  }, 16);
 }
 
 function updateState() {
-  if (keys.Shift) targetSpeed = 40;
+  if (keys.Shift) targetSpeed = 45;
   else if (keys.ArrowUp) targetSpeed = Math.min(60, targetSpeed + 0.5);
   else if (keys.ArrowDown) targetSpeed = Math.max(0.5, targetSpeed - 0.5);
   else targetSpeed += (BASE_SPEED - targetSpeed) * 0.05;
@@ -159,44 +173,78 @@ function updateState() {
   currentSpeed += (targetSpeed - currentSpeed) * 0.08;
   huePivot = (huePivot + 0.15) % 360;
 
-  // Portal logical progress
-  if (currentSpeed > WARP_SPEED_THRESHOLD && !isPhasing) {
-    portalProgress += (currentSpeed - WARP_SPEED_THRESHOLD) * 0.001;
-    if (portalProgress >= 1.0) triggerNextPhase();
-  } else {
-    portalProgress = Math.max(0, portalProgress - 0.01);
+  // Manual Portal Pulse / Buildup
+  if (portalBuildupValue > 0) {
+    portalBuildupValue -= 0.02;
+    if (portalBuildupValue < 0.01) triggerPortalEvent();
   }
 
-  if (phaseFlash > 0) phaseFlash -= 0.05;
+  if (phaseFlash > 0) phaseFlash -= 0.04;
+}
+
+function drawPortalRing() {
+  if (!isPhasing && portalBuildupValue <= 0) return;
+  
+  // Organic, jittery energy field logic
+  const time = Date.now() * 0.005;
+  const baseR = isPhasing ? portalProgress * height * 1.5 : (1 - portalBuildupValue) * 100;
+  const segments = 120;
+  const jitter = isPhasing ? 20 : 5;
+
+  ctx.save();
+  ctx.strokeStyle = `hsla(${huePivot}, 100%, 75%, ${0.5 + Math.sin(time)*0.2})`;
+  ctx.lineWidth = 4 + Math.sin(time * 0.5) * 2;
+  ctx.beginPath();
+
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const noise = Math.sin(angle * 8 + time) * jitter + (Math.random() - 0.5) * 4;
+    const pr = baseR + noise;
+    const px = centerX + Math.cos(angle) * pr;
+    const py = centerY + Math.sin(angle) * pr;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Outer glow pulse
+  ctx.globalAlpha = 0.2;
+  ctx.lineWidth = 15;
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawLoop() {
   updateState();
   const phase = PHASES[phaseIdx];
-  const shakeX = (Math.random() - 0.5) * phase.shake;
-  const shakeY = (Math.random() - 0.5) * phase.shake;
+  const shake = isPhasing ? 10 : phase.shake;
+  const shakeX = (Math.random() - 0.5) * shake;
+  const shakeY = (Math.random() - 0.5) * shake;
 
   ctx.save();
   ctx.translate(shakeX, shakeY);
 
-  // Background fade
-  ctx.fillStyle = `rgba(0, 0, 0, ${phase.trail + Math.abs(currentSpeed)/200})`;
-  ctx.fillRect(-10, -10, width + 20, height + 20);
+  // Dynamic Background trail
+  const trail = phase.trail + Math.abs(currentSpeed)/180;
+  ctx.fillStyle = `rgba(0, 0, 0, ${trail})`;
+  ctx.fillRect(-20, -20, width + 40, height + 40);
+
+  // Radial Core Glow
+  const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, width / 2);
+  glow.addColorStop(0, `hsla(${huePivot}, 100%, 15%, 0.15)`);
+  glow.addColorStop(0.7, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
 
   cosmicObjects.forEach(obj => { obj.update(currentSpeed); obj.draw(); });
   particles.forEach(p => { p.update(currentSpeed); p.draw(); });
 
-  // Barrier Visual
-  if (portalProgress > 0.1) {
-    const r = (1 - portalProgress) * height;
-    ctx.strokeStyle = `hsla(${huePivot}, 100%, 70%, ${portalProgress * 0.5})`;
-    ctx.lineWidth = 10;
-    ctx.beginPath(); ctx.arc(centerX, centerY, r > 0 ? r : 1, 0, Math.PI * 2); ctx.stroke();
-  }
+  drawPortalRing();
 
   ctx.restore();
 
-  // Flash Effect
+  // Instant breakthrough / phase jump flash
   if (phaseFlash > 0) {
     ctx.fillStyle = `rgba(255, 255, 255, ${phaseFlash})`;
     ctx.fillRect(0, 0, width, height);
@@ -207,10 +255,22 @@ function drawLoop() {
 
 // Logic Inputs
 window.addEventListener("mousemove", (e) => {
-  tunnelCurveX = (e.clientX / width - 0.5) * 5;
-  tunnelCurveY = (e.clientY / height - 0.5) * 5;
+  const tx = (e.clientX / width - 0.5) * 6;
+  const ty = (e.clientY / height - 0.5) * 6;
+  tunnelCurveX += (tx - tunnelCurveX) * 0.05;
+  tunnelCurveY += (ty - tunnelCurveY) * 0.05;
 });
-window.addEventListener("keydown", (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === " ") flightDirection *= -1; });
+
+window.addEventListener("keydown", (e) => {
+  if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+  
+  // MANUAL PORTAL TRIGGER (Space)
+  if (e.key === " " && currentSpeed > WARP_SPEED_THRESHOLD && !isPhasing && portalBuildupValue <= 0) {
+    portalBuildupValue = 1.0; // Starts 300ms countdown
+    phaseFlash = 0.3; // Initial feedback pulse
+    console.log("Portal charging...");
+  }
+});
 window.addEventListener("keyup", (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
 drawLoop();
