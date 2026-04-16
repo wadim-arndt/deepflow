@@ -1,32 +1,35 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let width, height;
-let centerX, centerY;
+let width, height, centerX, centerY;
 let particles = [];
-let targetCenterX, targetCenterY;
+let cosmicObjects = [];
 
-// Configuration
-const PARTICLE_COUNT = 1000;
+// --- Configuration ---
 const MAX_DEPTH = 1000;
-const TUNNEL_RADIUS = 300;
 const BASE_SPEED = 2.5;
-const WARP_SPEED_MULTIPLIER = 10;
+const WARP_SPEED_THRESHOLD = 35; // Speed required to build portal progress
+
+// Phase Definitions
+const PHASES = [
+  { id: 0, name: "Calm Space", count: 800, hueRange: 200, trail: 0.15, shake: 0 },
+  { id: 1, name: "Ion Cloud", count: 1200, hueRange: 160, trail: 0.25, shake: 0.5 },
+  { id: 2, name: "Energy Vortex", count: 1500, hueRange: 300, trail: 0.35, shake: 2 },
+  { id: 3, name: "Hyperspace Void", count: 2000, hueRange: 220, trail: 0.5, shake: 5 }
+];
+
+let phaseIdx = 0;
+let portalProgress = 0;
+let isPhasing = false;
+let phaseFlash = 0; // Screen flash alpha
 
 let currentSpeed = BASE_SPEED;
 let targetSpeed = BASE_SPEED;
-let flightDirection = 1; // 1 for forward, -1 for backward
-let tunnelCurveX = 0;
-let tunnelCurveY = 0;
-let huePivot = 220; // Neon Blue/Cyan shift
+let flightDirection = 1;
+let tunnelCurveX = 0, tunnelCurveY = 0;
+let huePivot = 220;
 
-// Input Tracking
-const keys = {
-  ArrowUp: false,
-  ArrowDown: false,
-  Shift: false,
-  " ": false // Spacebar
-};
+const keys = { ArrowUp: false, ArrowDown: false, Shift: false, " ": false };
 
 function resize() {
   width = canvas.width = window.innerWidth;
@@ -34,189 +37,180 @@ function resize() {
   centerX = width / 2;
   centerY = height / 2;
 }
-
 window.addEventListener("resize", resize);
 resize();
 
+// --- Particle Class ---
 class Particle {
   constructor(isInitial = false) {
     this.init(isInitial);
   }
 
   init(isInitial = false) {
-    // 1. Structured Tunnel Distribution (Cylindrical Wall)
-    // Using sqrt to push particles toward the outer radius of the tunnel
-    const distFactor = Math.sqrt(Math.random()); 
-    this.r = (distFactor * 200) + 100; 
-    
-    // Spiral bias mapping
+    const distFactor = Math.sqrt(Math.random());
+    this.r = (distFactor * 500) + 10;
     this.phi = Math.random() * Math.PI * 2;
-    
-    // Z placement
     this.z = isInitial ? Math.random() * MAX_DEPTH : (flightDirection > 0 ? MAX_DEPTH : 10);
     this.prevZ = this.z;
-
-    // Movement: subtle rotational drift creates the "bore" feeling
     this.spin = (Math.random() - 0.5) * 0.01;
-    this.wobble = Math.random() * 0.1;
-
-    // Visuals
     this.size = Math.random() * 1.5 + 0.5;
-    this.type = Math.random() > 0.85 ? 'streak' : 'dust';
+    this.type = Math.random() > 0.8 ? 'streak' : 'dust';
   }
 
   update(speed) {
     this.prevZ = this.z;
-    
-    // Move particle along Z based on direction and speed
     this.z -= (speed * flightDirection);
-
-    // Rotational drift around center axis
     this.phi += this.spin;
-
-    // Recycle logic for infinite flow
-    if (flightDirection > 0) {
-      if (this.z <= 1) this.init(false);
-    } else {
-      if (this.z >= MAX_DEPTH) this.init(false);
-    }
-  }
-
-  project(x, y, z) {
-    // 2. Strong Perspective Structure
-    // Ensuring particles grow rapidly as they leave the center vanish point
-    const focalLength = 500;
-    const factor = focalLength / z; 
-    
-    // Apply tunnel bending via mouse influence
-    const curveOffsetFactor = (MAX_DEPTH - z) * 0.15;
-    const px = x * factor + centerX + (tunnelCurveX * curveOffsetFactor);
-    const py = y * factor + centerY + (tunnelCurveY * curveOffsetFactor);
-    
-    return { px, py, factor };
+    if (flightDirection > 0 ? this.z <= 1 : this.z >= MAX_DEPTH) this.init(false);
   }
 
   draw() {
-    // 3. Structured Flow Calculation
-    const x = Math.cos(this.phi) * this.r;
-    const y = Math.sin(this.phi) * this.r;
-
-    const current = this.project(x, y, this.z);
-    
-    // Clipping
     if (this.z <= 5 || this.z >= MAX_DEPTH) return;
+    const factor = (500 + currentSpeed * 10) / this.z; // FOV shift with speed
+    const curve = (MAX_DEPTH - this.z) * 0.15;
+    const px = Math.cos(this.phi) * this.r * factor + centerX + (tunnelCurveX * curve);
+    const py = Math.sin(this.phi) * this.r * factor + centerY + (tunnelCurveY * curve);
 
-    // 4. Energy Ring Illusion (Z-based modulation)
-    // Synchronize brightness at certain intervals to create "rings"
-    const ringFreq = 0.05;
-    const ringIntensity = Math.pow(Math.sin(this.z * ringFreq), 10) * 0.5;
-    
-    // Depth-based intensity & color mapping
+    const phase = PHASES[phaseIdx];
     const depthAlpha = Math.max(0, 1 - (this.z / MAX_DEPTH));
-    const finalAlpha = depthAlpha * (0.3 + ringIntensity);
-    
     const hue = (huePivot + (this.z / 4)) % 360;
-    const brightness = 40 + (depthAlpha * 40) + (ringIntensity * 20);
+    const brightness = 40 + (depthAlpha * 40);
     
-    ctx.strokeStyle = `hsla(${hue}, 100%, ${brightness}%, ${finalAlpha})`;
-    ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${finalAlpha})`;
+    ctx.strokeStyle = `hsla(${hue}, 100%, ${brightness}%, ${depthAlpha})`;
+    ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${depthAlpha})`;
 
     if (this.type === 'streak' || Math.abs(currentSpeed) > 12) {
-      // Directional Trails
-      const previous = this.project(x, y, this.prevZ);
-      ctx.lineWidth = this.size * current.factor * 0.2;
-      ctx.beginPath();
-      ctx.moveTo(previous.px, previous.py);
-      ctx.lineTo(current.px, current.py);
-      ctx.stroke();
+      const prevFactor = (500 + currentSpeed * 10) / this.prevZ;
+      const prevX = Math.cos(this.phi) * this.r * prevFactor + centerX + (tunnelCurveX * curve);
+      const prevY = Math.sin(this.phi) * this.r * prevFactor + centerY + (tunnelCurveY * curve);
+      ctx.lineWidth = this.size * factor * 0.2;
+      ctx.beginPath(); ctx.moveTo(prevX, prevY); ctx.lineTo(px, py); ctx.stroke();
     } else {
-      // Detailed Dust / Stars
-      const s = this.size * current.factor * 0.1;
-      ctx.beginPath();
-      ctx.arc(current.px, current.py, Math.max(0.1, s), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, Math.max(0.1, this.size * factor * 0.1), 0, Math.PI * 2); ctx.fill();
     }
   }
 }
 
-// Init State
-for (let i = 0; i < PARTICLE_COUNT; i++) {
-  particles.push(new Particle(true));
+// --- Cosmic Object Class ---
+class CosmicObject {
+  constructor() {
+    this.init();
+  }
+
+  init() {
+    this.z = MAX_DEPTH * 1.5;
+    this.phi = Math.random() * Math.PI * 2;
+    this.r = 400 + Math.random() * 600;
+    this.size = 20 + Math.random() * 60;
+    this.type = Math.random() > 0.5 ? 'planet' : 'nebula';
+    this.hue = Math.random() * 360;
+  }
+
+  update(speed) {
+    this.z -= speed * 0.5 * flightDirection; // Slower parallax
+    if (this.z < 20) this.init();
+  }
+
+  draw() {
+    if (this.z > MAX_DEPTH * 1.5 || this.z < 20) return;
+    const factor = 500 / this.z;
+    const x = Math.cos(this.phi) * this.r * factor + centerX + (tunnelCurveX * (MAX_DEPTH - this.z) * 0.1);
+    const y = Math.sin(this.phi) * this.r * factor + centerY + (tunnelCurveY * (MAX_DEPTH - this.z) * 0.1);
+    const s = this.size * factor;
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, s);
+    if (this.type === 'planet') {
+      grad.addColorStop(0, `hsla(${this.hue}, 80%, 60%, 0.8)`);
+      grad.addColorStop(1, `hsla(${this.hue}, 100%, 10%, 0)`);
+    } else {
+      grad.addColorStop(0, `hsla(${this.hue}, 100%, 50%, 0.1)`);
+      grad.addColorStop(1, `transparent`);
+    }
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Initialization
+for (let i = 0; i < PHASES[0].count; i++) particles.push(new Particle(true));
+for (let i = 0; i < 3; i++) cosmicObjects.push(new CosmicObject());
+
+function triggerNextPhase() {
+  isPhasing = true;
+  phaseFlash = 1.0;
+  setTimeout(() => {
+    phaseIdx = (phaseIdx + 1) % PHASES.length;
+    portalProgress = 0;
+    isPhasing = false;
+    // Adjust particle count
+    const targetCount = PHASES[phaseIdx].count;
+    while (particles.length < targetCount) particles.push(new Particle());
+    if (particles.length > targetCount) particles.splice(0, particles.length - targetCount);
+    console.log(`Entering phase: ${PHASES[phaseIdx].name}`);
+  }, 200);
 }
 
 function updateState() {
-  // Speed Scaling & Controls
-  if (keys.Shift) {
-    targetSpeed = BASE_SPEED * WARP_SPEED_MULTIPLIER;
-  } else if (keys.ArrowUp) {
-    targetSpeed = Math.min(50, targetSpeed + 0.4);
-  } else if (keys.ArrowDown) {
-    targetSpeed = Math.max(0.5, targetSpeed - 0.4);
+  if (keys.Shift) targetSpeed = 40;
+  else if (keys.ArrowUp) targetSpeed = Math.min(60, targetSpeed + 0.5);
+  else if (keys.ArrowDown) targetSpeed = Math.max(0.5, targetSpeed - 0.5);
+  else targetSpeed += (BASE_SPEED - targetSpeed) * 0.05;
+
+  currentSpeed += (targetSpeed - currentSpeed) * 0.08;
+  huePivot = (huePivot + 0.15) % 360;
+
+  // Portal logical progress
+  if (currentSpeed > WARP_SPEED_THRESHOLD && !isPhasing) {
+    portalProgress += (currentSpeed - WARP_SPEED_THRESHOLD) * 0.001;
+    if (portalProgress >= 1.0) triggerNextPhase();
   } else {
-    // Slow drift toward base speed
-    targetSpeed += (BASE_SPEED - targetSpeed) * 0.05;
+    portalProgress = Math.max(0, portalProgress - 0.01);
   }
 
-  // Elastic Motion Interpolation
-  currentSpeed += (targetSpeed - currentSpeed) * 0.08;
-
-  // Global Hue Engine
-  huePivot = (huePivot + 0.15) % 360;
+  if (phaseFlash > 0) phaseFlash -= 0.05;
 }
 
 function drawLoop() {
   updateState();
+  const phase = PHASES[phaseIdx];
+  const shakeX = (Math.random() - 0.5) * phase.shake;
+  const shakeY = (Math.random() - 0.5) * phase.shake;
 
-  // Trail buildup (Alpha Fade)
-  const fadeAlpha = Math.min(0.2, 0.05 + Math.abs(currentSpeed) / 100);
-  ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
-  ctx.fillRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
 
-  // Core Vanishing Point Glow
-  const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, width / 2);
-  glow.addColorStop(0, `hsla(${huePivot}, 100%, 15%, 0.1)`);
-  glow.addColorStop(0.6, 'transparent');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, width, height);
+  // Background fade
+  ctx.fillStyle = `rgba(0, 0, 0, ${phase.trail + Math.abs(currentSpeed)/200})`;
+  ctx.fillRect(-10, -10, width + 20, height + 20);
 
-  // Painter's sorting (Z-depth consistency)
-  particles.sort((a, b) => b.z - a.z);
+  cosmicObjects.forEach(obj => { obj.update(currentSpeed); obj.draw(); });
+  particles.forEach(p => { p.update(currentSpeed); p.draw(); });
 
-  particles.forEach(p => {
-    p.update(currentSpeed);
-    p.draw();
-  });
+  // Barrier Visual
+  if (portalProgress > 0.1) {
+    const r = (1 - portalProgress) * height;
+    ctx.strokeStyle = `hsla(${huePivot}, 100%, 70%, ${portalProgress * 0.5})`;
+    ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.arc(centerX, centerY, r > 0 ? r : 1, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // Flash Effect
+  if (phaseFlash > 0) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${phaseFlash})`;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   requestAnimationFrame(drawLoop);
 }
 
-// Interactions
+// Logic Inputs
 window.addEventListener("mousemove", (e) => {
-  // Map mouse to tunnel curvature
-  const targetX = (e.clientX / width - 0.5) * 5;
-  const targetY = (e.clientY / height - 0.5) * 5;
-  
-  // Exponentially weighted smoothing for cursor
-  tunnelCurveX += (targetX - tunnelCurveX) * 0.05;
-  tunnelCurveY += (targetY - tunnelCurveY) * 0.05;
-  
-  // Influence color on rapid movement
-  huePivot = (huePivot + Math.abs(e.movementX) * 0.05) % 360;
+  tunnelCurveX = (e.clientX / width - 0.5) * 5;
+  tunnelCurveY = (e.clientY / height - 0.5) * 5;
 });
+window.addEventListener("keydown", (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === " ") flightDirection *= -1; });
+window.addEventListener("keyup", (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
-window.addEventListener("keydown", (e) => {
-  if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
-  
-  // Toggle Direction on Space
-  if (e.key === " ") {
-    flightDirection *= -1;
-    console.log(`flight direction reversed: ${flightDirection > 0 ? 'FORWARD' : 'BACKWARD'}`);
-  }
-});
-
-window.addEventListener("keyup", (e) => {
-  if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
-});
-
-// Launch
 drawLoop();
