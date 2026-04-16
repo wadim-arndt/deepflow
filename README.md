@@ -1,13 +1,13 @@
-# DEEPFLOW | Immersive Hyperspace Experience 🌠
+# deepflow | immersive hyperspace experience 🌠
 
-**DEEPFLOW** is a high-performance, interactive generative visualization that simulates high-speed travel through a structured digital hyperspace tunnel. Built with precision and a cinematic "wow-factor" in mind, it explores the boundaries of depth, color, and motion using only vanilla web technologies.
+**deepflow** is a high-performance, interactive generative visualization that simulates high-speed travel through a structured digital hyperspace tunnel. Built with precision and a cinematic "wow-factor" in mind, it explores the boundaries of depth, color, and motion using only vanilla web technologies.
 
 ---
 
 ## 🌌 Core Features
 
 - **3D Perspective Engine**: A custom projection system that calculates real-time depth, scaling particles from a distant vanishing point to immersive peripheral streaks.
-- **Cylindrical Tunnel Geometry**: Particles are distributed along the walls of a structured corridor, creating a clear central core and a powerful sense of direction.
+- **Cylindrical Tunnel Geometry**: Particles are distributed along the walls of a structured corridor, creating a clear central path (vanishing point).
 - **Dynamic Energy Rings**: Wave-modulated brightness and density shifts simulate "rings" of energy that pulse as you fly through them.
 - **Sci-Fi Aesthetic**: A curated neon palette (Cyan, Magenta, Royal Purple) that shifts based on depth, velocity, and user interaction.
 - **Motion Fluidity**: Elastic motion interpolation and speed-scaled motion trails (streaks) ensure a smooth, hypnotic visual flow at 60fps.
@@ -41,8 +41,15 @@ Take command of the flight with these interactive controls:
 
 ## 🚀 Getting Started
 
-Simply open `index.html` in any modern web browser to launch the experience.
+To experience **deepflow** with local development features, it is recommended to run a local server:
+
+```bash
+# Start with live-server for auto-refresh and optimal performance
+npx live-server
+```
+
+Alternatively, you can simply open `index.html` in any modern web browser.
 
 ---
 
-*Built with passion for creative coding and digital aesthetics.*
+*built with passion for creative coding and digital aesthetics.*

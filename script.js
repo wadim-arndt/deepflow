@@ -210,7 +210,7 @@ window.addEventListener("keydown", (e) => {
   // Toggle Direction on Space
   if (e.key === " ") {
     flightDirection *= -1;
-    console.log(`Flight Direction reversed: ${flightDirection > 0 ? 'FORWARD' : 'BACKWARD'}`);
+    console.log(`flight direction reversed: ${flightDirection > 0 ? 'FORWARD' : 'BACKWARD'}`);
   }
 });
 
