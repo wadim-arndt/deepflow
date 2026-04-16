@@ -23,10 +23,9 @@ Take command of the flight with these interactive controls:
 - **Palette Shift**: Rapid movements influence the current color cycles.
 
 ### ⌨️ Keyboard
-- **`Space`**: **Reverse Flight**. Toggle between forward and backward travel through the wormhole.
-- **`Shift` (Hold)**: **Engage Warp Drive**. Extreme acceleration with elongated motion trails.
-- **`Arrow Up`**: Increase base travel speed.
-- **`Arrow Down`**: Decrease base travel speed.
+- **`Space`**: **Phase Breakthrough**. Trigger a jump to the next cosmic dimension (requires high velocity).
+- **`Shift` (Hold)**: **Engage Warp Drive**. Rapidly accelerate to extreme speeds with elongated motion trails.
+- **`Arrow Up / Down`**: **Manual Throttle**. Fine-tune your base flight velocity.
 
 ---
 
