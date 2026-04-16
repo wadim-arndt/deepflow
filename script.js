@@ -7,23 +7,25 @@ let particles = [];
 let targetCenterX, targetCenterY;
 
 // Configuration
-const PARTICLE_COUNT = 800;
+const PARTICLE_COUNT = 1000;
 const MAX_DEPTH = 1000;
-const TUNNEL_RADIUS = 250;
-const BASE_SPEED = 2;
-const WARP_SPEED_MULTIPLIER = 12;
+const TUNNEL_RADIUS = 300;
+const BASE_SPEED = 2.5;
+const WARP_SPEED_MULTIPLIER = 10;
 
 let currentSpeed = BASE_SPEED;
 let targetSpeed = BASE_SPEED;
+let flightDirection = 1; // 1 for forward, -1 for backward
 let tunnelCurveX = 0;
 let tunnelCurveY = 0;
-let huePivot = 200; // Starting neon blue/cyan
+let huePivot = 220; // Neon Blue/Cyan shift
 
-// State track
+// Input Tracking
 const keys = {
   ArrowUp: false,
   ArrowDown: false,
-  Shift: false
+  Shift: false,
+  " ": false // Spacebar
 };
 
 function resize() {
@@ -31,8 +33,6 @@ function resize() {
   height = canvas.height = window.innerHeight;
   centerX = width / 2;
   centerY = height / 2;
-  targetCenterX = centerX;
-  targetCenterY = centerY;
 }
 
 window.addEventListener("resize", resize);
@@ -44,64 +44,85 @@ class Particle {
   }
 
   init(isInitial = false) {
-    // 3D Polar coordinates
-    this.r = Math.random() * TUNNEL_RADIUS + 50; 
+    // 1. Structured Tunnel Distribution (Cylindrical Wall)
+    // Using sqrt to push particles toward the outer radius of the tunnel
+    const distFactor = Math.sqrt(Math.random()); 
+    this.r = (distFactor * 200) + 100; 
+    
+    // Spiral bias mapping
     this.phi = Math.random() * Math.PI * 2;
     
-    // Z depth (0 is viewer, MAX_DEPTH is far end)
-    // If isInitial, distribute across Z, else start at the far end
-    this.z = isInitial ? Math.random() * MAX_DEPTH : MAX_DEPTH;
+    // Z placement
+    this.z = isInitial ? Math.random() * MAX_DEPTH : (flightDirection > 0 ? MAX_DEPTH : 10);
     this.prevZ = this.z;
 
-    // Movement noise / spiral
-    this.spin = (Math.random() - 0.5) * 0.02;
-    this.noise = (Math.random() - 0.5) * 2;
+    // Movement: subtle rotational drift creates the "bore" feeling
+    this.spin = (Math.random() - 0.5) * 0.01;
+    this.wobble = Math.random() * 0.1;
 
     // Visuals
-    this.size = Math.random() * 2 + 0.5;
-    this.type = Math.random() > 0.8 ? 'streak' : 'dust';
+    this.size = Math.random() * 1.5 + 0.5;
+    this.type = Math.random() > 0.85 ? 'streak' : 'dust';
   }
 
-  update(speed, curveX, curveY) {
+  update(speed) {
     this.prevZ = this.z;
-    this.z -= speed;
+    
+    // Move particle along Z based on direction and speed
+    this.z -= (speed * flightDirection);
 
-    // Spiral rotation
+    // Rotational drift around center axis
     this.phi += this.spin;
 
-    // Reset particle if it passes the viewer
-    if (this.z <= 0) {
-      this.init(false);
+    // Recycle logic for infinite flow
+    if (flightDirection > 0) {
+      if (this.z <= 1) this.init(false);
+    } else {
+      if (this.z >= MAX_DEPTH) this.init(false);
     }
   }
 
   project(x, y, z) {
-    const factor = 600 / z; // Perspective factor
-    const px = x * factor + centerX + (tunnelCurveX * (MAX_DEPTH - z) * 0.1);
-    const py = y * factor + centerY + (tunnelCurveY * (MAX_DEPTH - z) * 0.1);
+    // 2. Strong Perspective Structure
+    // Ensuring particles grow rapidly as they leave the center vanish point
+    const focalLength = 500;
+    const factor = focalLength / z; 
+    
+    // Apply tunnel bending via mouse influence
+    const curveOffsetFactor = (MAX_DEPTH - z) * 0.15;
+    const px = x * factor + centerX + (tunnelCurveX * curveOffsetFactor);
+    const py = y * factor + centerY + (tunnelCurveY * curveOffsetFactor);
+    
     return { px, py, factor };
   }
 
   draw() {
-    // Calculate 3D position
-    const x = Math.cos(this.phi) * this.r + this.noise;
-    const y = Math.sin(this.phi) * this.r + this.noise;
+    // 3. Structured Flow Calculation
+    const x = Math.cos(this.phi) * this.r;
+    const y = Math.sin(this.phi) * this.r;
 
     const current = this.project(x, y, this.z);
     
-    // Don't draw if behind viewer (though init handles this, safety first)
-    if (this.z <= 10) return;
+    // Clipping
+    if (this.z <= 5 || this.z >= MAX_DEPTH) return;
 
-    // Color based on huePivot, time, and distance
-    const depthAlpha = 1 - (this.z / MAX_DEPTH);
-    const hue = (huePivot + (this.z / 5)) % 360;
-    const brightness = 50 + (depthAlpha * 30);
+    // 4. Energy Ring Illusion (Z-based modulation)
+    // Synchronize brightness at certain intervals to create "rings"
+    const ringFreq = 0.05;
+    const ringIntensity = Math.pow(Math.sin(this.z * ringFreq), 10) * 0.5;
     
-    ctx.strokeStyle = `hsla(${hue}, 100%, ${brightness}%, ${depthAlpha})`;
-    ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${depthAlpha})`;
+    // Depth-based intensity & color mapping
+    const depthAlpha = Math.max(0, 1 - (this.z / MAX_DEPTH));
+    const finalAlpha = depthAlpha * (0.3 + ringIntensity);
+    
+    const hue = (huePivot + (this.z / 4)) % 360;
+    const brightness = 40 + (depthAlpha * 40) + (ringIntensity * 20);
+    
+    ctx.strokeStyle = `hsla(${hue}, 100%, ${brightness}%, ${finalAlpha})`;
+    ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${finalAlpha})`;
 
-    if (this.type === 'streak' || currentSpeed > 10) {
-      // Draw motion trail
+    if (this.type === 'streak' || Math.abs(currentSpeed) > 12) {
+      // Directional Trails
       const previous = this.project(x, y, this.prevZ);
       ctx.lineWidth = this.size * current.factor * 0.2;
       ctx.beginPath();
@@ -109,7 +130,7 @@ class Particle {
       ctx.lineTo(current.px, current.py);
       ctx.stroke();
     } else {
-      // Draw point/star
+      // Detailed Dust / Stars
       const s = this.size * current.factor * 0.1;
       ctx.beginPath();
       ctx.arc(current.px, current.py, Math.max(0.1, s), 0, Math.PI * 2);
@@ -118,76 +139,84 @@ class Particle {
   }
 }
 
-// Initialize particles
+// Init State
 for (let i = 0; i < PARTICLE_COUNT; i++) {
   particles.push(new Particle(true));
 }
 
 function updateState() {
-  // Handle speed targets
+  // Speed Scaling & Controls
   if (keys.Shift) {
     targetSpeed = BASE_SPEED * WARP_SPEED_MULTIPLIER;
   } else if (keys.ArrowUp) {
-    targetSpeed = Math.min(60, targetSpeed + 0.5);
+    targetSpeed = Math.min(50, targetSpeed + 0.4);
   } else if (keys.ArrowDown) {
-    targetSpeed = Math.max(1, targetSpeed - 0.5);
+    targetSpeed = Math.max(0.5, targetSpeed - 0.4);
   } else {
-    // Return to base speed gradually
-    targetSpeed = targetSpeed > BASE_SPEED ? targetSpeed - 0.2 : targetSpeed + 0.1;
-    if (Math.abs(targetSpeed - BASE_SPEED) < 0.2) targetSpeed = BASE_SPEED;
+    // Slow drift toward base speed
+    targetSpeed += (BASE_SPEED - targetSpeed) * 0.05;
   }
 
-  // Smooth speed transition
-  currentSpeed += (targetSpeed - currentSpeed) * 0.1;
+  // Elastic Motion Interpolation
+  currentSpeed += (targetSpeed - currentSpeed) * 0.08;
 
-  // Global hue cycle
-  huePivot = (huePivot + 0.2) % 360;
+  // Global Hue Engine
+  huePivot = (huePivot + 0.15) % 360;
 }
 
-function draw() {
+function drawLoop() {
   updateState();
 
-  // Create hyperspace trail effect via alpha fade
-  // Darker fade at high speed for cleaner streaks
-  const fadeAlpha = currentSpeed > 15 ? 0.3 : 0.15;
+  // Trail buildup (Alpha Fade)
+  const fadeAlpha = Math.min(0.2, 0.05 + Math.abs(currentSpeed) / 100);
   ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
   ctx.fillRect(0, 0, width, height);
 
-  // Center Glow (Bloom Simulation)
-  const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, width / 2);
-  gradient.addColorStop(0, `hsla(${huePivot}, 100%, 20%, 0.1)`);
-  gradient.addColorStop(0.5, 'transparent');
-  ctx.fillStyle = gradient;
+  // Core Vanishing Point Glow
+  const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, width / 2);
+  glow.addColorStop(0, `hsla(${huePivot}, 100%, 15%, 0.1)`);
+  glow.addColorStop(0.6, 'transparent');
+  ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
 
-  // Sort particles by Z so distant ones are drawn first (painters algorithm)
-  // Actually optional for this tunnel effect since Z is clear, but better for visual depth
+  // Painter's sorting (Z-depth consistency)
   particles.sort((a, b) => b.z - a.z);
 
   particles.forEach(p => {
-    p.update(currentSpeed, tunnelCurveX, tunnelCurveY);
+    p.update(currentSpeed);
     p.draw();
   });
 
-  requestAnimationFrame(draw);
+  requestAnimationFrame(drawLoop);
 }
 
-// Interactivity
+// Interactions
 window.addEventListener("mousemove", (e) => {
-  // Normalize mouse pos to -1 to 1
-  tunnelCurveX = (e.clientX / width - 0.5) * 2;
-  tunnelCurveY = (e.clientY / height - 0.5) * 2;
-
-  // Influence hue with mouse X pos
-  huePivot = (huePivot + e.movementX * 0.1) % 360;
+  // Map mouse to tunnel curvature
+  const targetX = (e.clientX / width - 0.5) * 5;
+  const targetY = (e.clientY / height - 0.5) * 5;
+  
+  // Exponentially weighted smoothing for cursor
+  tunnelCurveX += (targetX - tunnelCurveX) * 0.05;
+  tunnelCurveY += (targetY - tunnelCurveY) * 0.05;
+  
+  // Influence color on rapid movement
+  huePivot = (huePivot + Math.abs(e.movementX) * 0.05) % 360;
 });
 
 window.addEventListener("keydown", (e) => {
   if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+  
+  // Toggle Direction on Space
+  if (e.key === " ") {
+    flightDirection *= -1;
+    console.log(`Flight Direction reversed: ${flightDirection > 0 ? 'FORWARD' : 'BACKWARD'}`);
+  }
 });
 
 window.addEventListener("keyup", (e) => {
   if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
 });
 
-draw();
+// Launch
+drawLoop();
