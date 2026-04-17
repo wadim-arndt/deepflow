@@ -1,8 +1,8 @@
 :root {
   --glow-color: rgba(0, 255, 255, 0.4);
   --accent-color: #00ffff;
-  --text-color: rgba(255, 255, 255, 0.9);
-  --ui-font: 'Orbitron', sans-serif;
+  --text-color: rgba(255, 255, 255, 0.7);
+  --ui-font: 'Michroma', sans-serif;
 }
 
 html, body {
@@ -55,29 +55,53 @@ canvas {
 
 /* --- Intro Screen --- */
 .cinematic-title {
-  font-size: 8rem;
-  font-weight: 900;
-  letter-spacing: 1.5rem;
-  margin: 0 0 4rem 0;
+  font-size: 3.5rem;
+  font-weight: 400;
+  letter-spacing: 0.8rem;
+  margin: 0 0 5rem 0;
   color: var(--text-color);
   text-transform: lowercase;
   position: relative;
-  animation: titleEntry 4s cubic-bezier(0.19, 1, 0.22, 1) forwards;
-  opacity: 0.8;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+  
+  /* Glass / Holographic effect */
+  background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(0,255,255,0.4) 50%, rgba(157,0,255,0.4) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  
+  text-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+  opacity: 0;
+  
+  animation: 
+    titleEntry 4s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    floatEffect 6s ease-in-out infinite 4s,
+    shimmerEffect 12s linear infinite;
 }
 
 @keyframes titleEntry {
   0% {
-    transform: scale(0.2) translateZ(-500px);
+    transform: scale(0.6) translateY(20px);
     opacity: 0;
-    letter-spacing: 4rem;
+    letter-spacing: 2rem;
+    filter: blur(10px);
   }
   100% {
-    transform: scale(1) translateZ(0);
+    transform: scale(1) translateY(0);
     opacity: 0.8;
-    letter-spacing: 1.5rem;
+    letter-spacing: 0.8rem;
+    filter: blur(0);
   }
+}
+
+@keyframes floatEffect {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-15px) translateX(5px); }
+}
+
+@keyframes shimmerEffect {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 
 /* Sparkle Effect */
@@ -141,43 +165,50 @@ canvas {
 /* --- Buttons --- */
 .futuristic-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
   padding: 1rem 3.5rem;
   font-family: var(--ui-font);
-  font-size: 1rem;
-  letter-spacing: 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.5rem;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(5px);
-  border-radius: 2px;
+  backdrop-filter: blur(12px);
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.05);
+  text-transform: lowercase;
 }
 
 .futuristic-btn:hover {
-  transform: scale(1.05) translateY(-2px);
-  border-color: var(--accent-color);
-  box-shadow: 0 0 25px var(--glow-color);
-  color: var(--accent-color);
-  letter-spacing: 0.5rem;
+  transform: scale(1.08);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 15px rgba(0, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+  letter-spacing: 0.6rem;
+  background: rgba(0, 255, 255, 0.02);
 }
 
 .futuristic-btn::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transform: translate(-50%, -50%) rotate(45deg);
-  transition: all 0.6s;
+  top: 0;
   left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.8s;
 }
 
 .futuristic-btn:hover::before {
-  left: 100%;
+  left: 150%;
 }
 
 @media (max-width: 768px) {

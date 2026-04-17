@@ -39,20 +39,7 @@ const mainTitle = document.getElementById("main-title");
 const startBtn = document.getElementById("start-btn");
 const beginBtn = document.getElementById("begin-btn");
 
-function createSparkles() {
-  if (!mainTitle) return;
-  const numSparkles = 20;
-  for (let i = 0; i < numSparkles; i++) {
-    const sparkle = document.createElement("div");
-    sparkle.className = "sparkle";
-    const x = Math.random() * 100;
-    const y = Math.random() * 100;
-    sparkle.style.left = `${x}%`;
-    sparkle.style.top = `${y}%`;
-    sparkle.style.animationDelay = `${Math.random() * 2}s`;
-    mainTitle.appendChild(sparkle);
-  }
-}
+
 
 function startToControls() {
   appState = "controls";
@@ -70,7 +57,7 @@ function beginExperience() {
 
 startBtn.addEventListener("click", startToControls);
 beginBtn.addEventListener("click", beginExperience);
-createSparkles();
+
 
 function resize() {
   width = canvas.width = window.innerWidth;
