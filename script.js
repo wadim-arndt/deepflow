@@ -12,10 +12,10 @@ const WARP_SPEED_THRESHOLD = 30; // Threshold for portal activation
 
 // Phase Definitions with increased star counts
 const PHASES = [
-  { id: 0, name: "Calm Space", count: 1200, hueRange: 200, trail: 0.15, shake: 0 },
-  { id: 1, name: "Ion Cloud", count: 1800, hueRange: 160, trail: 0.25, shake: 0.5 },
-  { id: 2, name: "Energy Vortex", count: 2200, hueRange: 300, trail: 0.35, shake: 2 },
-  { id: 3, name: "Hyperspace Void", count: 2800, hueRange: 220, trail: 0.5, shake: 5 }
+  { id: 0, name: "Calm Space", count: 1600, hueRange: 200, trail: 0.12, shake: 0 },
+  { id: 1, name: "Ion Cloud", count: 2400, hueRange: 160, trail: 0.20, shake: 0.5 },
+  { id: 2, name: "Energy Vortex", count: 3200, hueRange: 300, trail: 0.30, shake: 2 },
+  { id: 3, name: "Hyperspace Void", count: 4000, hueRange: 220, trail: 0.40, shake: 5 }
 ];
 
 let phaseIdx = 0;
@@ -113,12 +113,16 @@ class Particle {
     ctx.strokeStyle = `hsla(${hue}, 100%, ${brightness}%, ${depthAlpha})`;
     ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${depthAlpha})`;
 
-    if (this.type === 'streak' || Math.abs(currentSpeed) > 12) {
+    if (this.type === 'streak' || Math.abs(currentSpeed) > 10) {
       const prevFactor = (500 + currentSpeed * 10) / this.prevZ;
       const prevX = Math.cos(this.phi) * this.r * prevFactor + centerX + (tunnelCurveX * curve);
       const prevY = Math.sin(this.phi) * this.r * prevFactor + centerY + (tunnelCurveY * curve);
-      ctx.lineWidth = this.size * factor * 0.2;
+      
+      const speedFactor = Math.min(1, currentSpeed / 40);
+      ctx.lineWidth = this.size * factor * (0.2 + speedFactor * 0.3);
+      ctx.globalAlpha = Math.min(1, depthAlpha * (1 + speedFactor));
       ctx.beginPath(); ctx.moveTo(prevX, prevY); ctx.lineTo(px, py); ctx.stroke();
+      ctx.globalAlpha = 1;
     } else {
       ctx.beginPath(); ctx.arc(px, py, Math.max(0.1, this.size * factor * 0.1), 0, Math.PI * 2); ctx.fill();
     }
@@ -218,33 +222,52 @@ function updateState() {
 function drawPortalRing() {
   if (!isPhasing && portalBuildupValue <= 0) return;
   
-  // Organic, jittery energy field logic
-  const time = Date.now() * 0.005;
-  const baseR = isPhasing ? portalProgress * height * 1.5 : (1 - portalBuildupValue) * 100;
-  const segments = 120;
-  const jitter = isPhasing ? 20 : 5;
+  // Transition logic: appear in flight direction
+  // tunnelCurveX/Y ranges from approx -3 to 3. Curve at depth is ~100.
+  const portalX = centerX + (tunnelCurveX * 120);
+  const portalY = centerY + (tunnelCurveY * 120);
 
+  const time = Date.now() * 0.008;
+  const baseR = isPhasing ? portalProgress * height * 1.5 : (1 - portalBuildupValue) * 120;
+  const segments = 180; // Higher resolution for waveform
+  
   ctx.save();
-  ctx.strokeStyle = `hsla(${huePivot}, 100%, 75%, ${0.5 + Math.sin(time)*0.2})`;
-  ctx.lineWidth = 4 + Math.sin(time * 0.5) * 2;
+  ctx.strokeStyle = `hsla(${huePivot}, 100%, 75%, ${0.6 + Math.sin(time)*0.2})`;
+  ctx.lineWidth = 3 + Math.sin(time * 0.5) * 1.5;
+  
+  // Outer glow
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = `hsla(${huePivot}, 100%, 60%, 0.5)`;
+  
   ctx.beginPath();
-
   for (let i = 0; i <= segments; i++) {
     const angle = (i / segments) * Math.PI * 2;
-    const noise = Math.sin(angle * 8 + time) * jitter + (Math.random() - 0.5) * 4;
+    
+    // Waveform distortion: multiple high-frequency sine waves
+    const freq1 = 24.0;
+    const freq2 = 56.0;
+    const amp1 = isPhasing ? 12 : 4;
+    const amp2 = isPhasing ? 6 : 2;
+    
+    const noise = Math.sin(angle * freq1 + time * 3) * amp1 + 
+                  Math.sin(angle * freq2 - time * 5) * amp2 +
+                  (Math.random() - 0.5) * (isPhasing ? 5 : 1);
+    
     const pr = baseR + noise;
-    const px = centerX + Math.cos(angle) * pr;
-    const py = centerY + Math.sin(angle) * pr;
+    const px = portalX + Math.cos(angle) * pr;
+    const py = portalY + Math.sin(angle) * pr;
+    
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   }
   ctx.closePath();
   ctx.stroke();
 
-  // Outer glow pulse
-  ctx.globalAlpha = 0.2;
-  ctx.lineWidth = 15;
+  // Second, sharper inner ring
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1;
   ctx.stroke();
+  
   ctx.restore();
 }
 
