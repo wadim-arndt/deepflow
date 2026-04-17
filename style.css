@@ -1,10 +1,217 @@
+:root {
+  --glow-color: rgba(0, 255, 255, 0.4);
+  --accent-color: #00ffff;
+  --text-color: rgba(255, 255, 255, 0.7);
+  --ui-font: 'Michroma', sans-serif;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
   background: black;
+  font-family: var(--ui-font);
 }
 
 canvas {
   display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.screen {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.5s ease-in-out;
+  width: 80%;
+  max-width: 800px;
+}
+
+.screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* --- Intro Screen --- */
+.cinematic-title {
+  font-size: 3.5rem;
+  font-weight: 400;
+  letter-spacing: 0.8rem;
+  margin: 0 0 5rem 0;
+  color: var(--text-color);
+  text-transform: lowercase;
+  position: relative;
+  
+  /* Glass / Holographic effect */
+  background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(0,255,255,0.4) 50%, rgba(157,0,255,0.4) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  
+  text-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+  opacity: 0;
+  
+  animation: 
+    titleEntry 4s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    floatEffect 6s ease-in-out infinite 4s,
+    shimmerEffect 12s linear infinite;
+}
+
+@keyframes titleEntry {
+  0% {
+    transform: scale(0.6) translateY(20px);
+    opacity: 0;
+    letter-spacing: 2rem;
+    filter: blur(10px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 0.8;
+    letter-spacing: 0.8rem;
+    filter: blur(0);
+  }
+}
+
+@keyframes floatEffect {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-15px) translateX(5px); }
+}
+
+@keyframes shimmerEffect {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Sparkle Effect */
+.sparkle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 5px white, 0 0 10px var(--accent-color);
+  opacity: 0;
+  pointer-events: none;
+  animation: sparkleFlash 2s infinite ease-in-out;
+}
+
+@keyframes sparkleFlash {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+
+/* --- Controls Screen --- */
+.screen-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 3rem;
+  letter-spacing: 0.5rem;
+  color: var(--accent-color);
+  text-transform: uppercase;
+}
+
+.controls-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 4rem;
+  text-align: left;
+}
+
+.controls-list li {
+  margin: 1.5rem 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+}
+
+.controls-list li span {
+  display: inline-block;
+  min-width: 140px;
+  color: var(--accent-color);
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid var(--accent-color);
+  padding: 0.4rem 0.8rem;
+  margin-right: 1.5rem;
+  text-align: center;
+  border-radius: 4px;
+  box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.1);
+}
+
+/* --- Buttons --- */
+.futuristic-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 1rem 3.5rem;
+  font-family: var(--ui-font);
+  font-size: 0.8rem;
+  letter-spacing: 0.5rem;
+  cursor: pointer;
+  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.05);
+  text-transform: lowercase;
+}
+
+.futuristic-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 15px rgba(0, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+  letter-spacing: 0.6rem;
+  background: rgba(0, 255, 255, 0.02);
+}
+
+.futuristic-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.8s;
+}
+
+.futuristic-btn:hover::before {
+  left: 150%;
+}
+
+@media (max-width: 768px) {
+  .cinematic-title { font-size: 4rem; letter-spacing: 0.5rem; }
+  .controls-list li span { min-width: 100px; font-size: 0.7rem; }
 }

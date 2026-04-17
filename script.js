@@ -31,6 +31,34 @@ let huePivot = 220;
 
 const keys = { ArrowUp: false, ArrowDown: false, Shift: false, " ": false };
 
+// --- UI State Management ---
+let appState = "intro"; // "intro" | "controls" | "running"
+const introScreen = document.getElementById("intro-screen");
+const controlsScreen = document.getElementById("controls-screen");
+const mainTitle = document.getElementById("main-title");
+const startBtn = document.getElementById("start-btn");
+const beginBtn = document.getElementById("begin-btn");
+
+
+
+function startToControls() {
+  appState = "controls";
+  introScreen.classList.remove("active");
+  setTimeout(() => {
+    controlsScreen.classList.add("active");
+  }, 500);
+}
+
+function beginExperience() {
+  appState = "running";
+  controlsScreen.classList.remove("active");
+  // Transition speed ramp handled in updateState
+}
+
+startBtn.addEventListener("click", startToControls);
+beginBtn.addEventListener("click", beginExperience);
+
+
 function resize() {
   width = canvas.width = window.innerWidth;
   height = canvas.height = window.innerHeight;
@@ -165,10 +193,15 @@ function triggerPortalEvent() {
 }
 
 function updateState() {
-  if (keys.Shift) targetSpeed = 45;
-  else if (keys.ArrowUp) targetSpeed = Math.min(60, targetSpeed + 0.5);
-  else if (keys.ArrowDown) targetSpeed = Math.max(0.5, targetSpeed - 0.5);
-  else targetSpeed += (BASE_SPEED - targetSpeed) * 0.05;
+  if (appState === "running") {
+    if (keys.Shift) targetSpeed = 45;
+    else if (keys.ArrowUp) targetSpeed = Math.min(60, targetSpeed + 0.5);
+    else if (keys.ArrowDown) targetSpeed = Math.max(0.5, targetSpeed - 0.5);
+    else targetSpeed += (BASE_SPEED - targetSpeed) * 0.05;
+  } else {
+    // Calm, slow speed for intro/controls
+    targetSpeed = 0.4;
+  }
 
   currentSpeed += (targetSpeed - currentSpeed) * 0.08;
   huePivot = (huePivot + 0.15) % 360;
@@ -255,6 +288,14 @@ function drawLoop() {
 
 // Logic Inputs
 window.addEventListener("mousemove", (e) => {
+  if (appState !== "running" && appState !== "controls") {
+    // subtle movement in intro
+    const tx = (e.clientX / width - 0.5) * 2;
+    const ty = (e.clientY / height - 0.5) * 2;
+    tunnelCurveX += (tx - tunnelCurveX) * 0.02;
+    tunnelCurveY += (ty - tunnelCurveY) * 0.02;
+    return;
+  }
   const tx = (e.clientX / width - 0.5) * 6;
   const ty = (e.clientY / height - 0.5) * 6;
   tunnelCurveX += (tx - tunnelCurveX) * 0.05;

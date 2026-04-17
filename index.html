@@ -5,8 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>deepflow</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
 </head>
 <body>
+
+<div id="ui-layer">
+  <!-- Intro Screen -->
+  <div id="intro-screen" class="screen active">
+    <h1 id="main-title" class="cinematic-title">deepflow</h1>
+    <button id="start-btn" class="futuristic-btn">START</button>
+  </div>
+
+  <!-- Controls Screen -->
+  <div id="controls-screen" class="screen">
+    <h1 class="screen-title">CONTROLS</h1>
+    <ul class="controls-list">
+      <li><span>ARROW UP</span> INCREASE SPEED</li>
+      <li><span>ARROW DOWN</span> DECREASE SPEED</li>
+      <li><span>MOUSE</span> CONTROL DIRECTION</li>
+      <li><span>SPACE</span> TRIGGER PORTAL</li>
+    </ul>
+    <button id="begin-btn" class="futuristic-btn">BEGIN</button>
+  </div>
+</div>
 
 <canvas id="canvas"></canvas>
 
